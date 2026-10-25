@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Canvas } from "@react-three/fiber"
 import { OrbitControls, Stars } from "@react-three/drei"
 import { Planet } from "./planet"
@@ -13,6 +14,32 @@ type GalaxyMapProps = {
 }
 
 export function GalaxyMap({ onPlanetSelect, selectedPlanet }: GalaxyMapProps) {
+  const [supported, setSupported] = useState<boolean | null>(null)
+  useEffect(() => {
+    try {
+      const canvas = document.createElement("canvas")
+      const context = canvas.getContext("webgl2") || canvas.getContext("webgl")
+      setSupported(!!context)
+      context?.getExtension("WEBGL_lose_context")?.loseContext()
+    } catch {
+      setSupported(false)
+    }
+  }, [])
+  if (supported === null)
+    return (
+      <p role="status" className="p-8 text-muted-foreground">
+        Preparing 3D view…
+      </p>
+    )
+  if (!supported)
+    return (
+      <p
+        role="status"
+        className="h-full grid place-items-center px-8 text-center text-muted-foreground"
+      >
+        The 3D view is unavailable. You can still explore every planet using the list.
+      </p>
+    )
   return (
     <Canvas camera={{ position: [0, 0, 15], fov: 60 }}>
       <color attach="background" args={["#000000"]} />

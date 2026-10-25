@@ -2,14 +2,12 @@ import type React from "react"
 import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
-import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
 
 export const metadata: Metadata = {
   title: "Exo-Plain",
-  description: "Discover and analyze exoplanets using AI",
-  generator: "v0.app",
+  description: "Explore exoplanet observations and understand the evidence",
 }
 
 export default function RootLayout({
@@ -21,7 +19,6 @@ export default function RootLayout({
     <html lang="en">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
-        <Analytics />
       </body>
     </html>
   )

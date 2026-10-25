@@ -16,5 +16,4 @@ export type PlanetFormData = {
   dec: string
   kepler_band_mag: string
   ring_system: string
-  light_curve_file?: File
 }

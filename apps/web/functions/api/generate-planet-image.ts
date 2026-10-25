@@ -1,2 +1,6 @@
-import { POST } from '../../src/lib/server/generate-planet-image'
-export const onRequestPost = ({ request, env }: { request: Request; env: { GEMINI_API_KEY?: string } }) => POST(request, env)
+// Illustrations are rendered locally by the frontend; no image service is required.
+export const onRequestPost = () =>
+  Response.json(
+    { error: "This endpoint has been retired. Planet illustrations are rendered locally." },
+    { status: 410 },
+  )

@@ -21,7 +21,7 @@ export function Planet({ data, onClick, isSelected }: PlanetProps) {
       meshRef.current.rotation.y += 0.005
 
       // Gentle floating animation
-      meshRef.current.position.y = data.position[1] + Math.sin(state.clock.elapsedTime + data.position[0]) * 0.1
+      meshRef.current.position.y = Math.sin(state.clock.elapsedTime + data.position[0]) * 0.1
     }
   })
 
@@ -54,8 +54,12 @@ export function Planet({ data, onClick, isSelected }: PlanetProps) {
       </Sphere>
 
       {/* Planet glow */}
-      <Sphere args={[data.size * 1.2, 32, 32]}>
-        <meshBasicMaterial color={data.color} transparent opacity={hovered || isSelected ? 0.3 : 0.1} />
+      <Sphere args={[data.size * 1.2, 32, 32]} raycast={() => {}}>
+        <meshBasicMaterial
+          color={data.color}
+          transparent
+          opacity={hovered || isSelected ? 0.3 : 0.1}
+        />
       </Sphere>
 
       {/* Planet label */}

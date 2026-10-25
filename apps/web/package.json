@@ -6,16 +6,18 @@
     "build": "next build",
     "dev": "next dev",
     "start": "wrangler pages dev out",
-    "preview": "npm run build:pages && wrangler pages dev out",
+    "preview": "npm run preview:pages",
     "deploy": "npm run build:pages && wrangler pages deploy out",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "build:pages": "next build",
-    "preview:pages": "npm run build:pages && wrangler pages dev out",
+    "preview:pages": "NEXT_PUBLIC_SAME_ORIGIN_API=true next build && wrangler pages dev out",
     "deploy:pages": "npm run build:pages && wrangler pages deploy out",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "playwright test",
+    "test:browser": "playwright test tests/browser.spec.ts",
+    "format": "prettier --write src functions tests scripts playwright.config.ts",
+    "format:check": "prettier --check src functions tests scripts playwright.config.ts"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
@@ -46,17 +48,12 @@
     "@radix-ui/react-tooltip": "1.1.6",
     "@react-three/drei": "latest",
     "@react-three/fiber": "latest",
-    "@vercel/analytics": "latest",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
-    "expo": "latest",
-    "expo-asset": "latest",
-    "expo-file-system": "latest",
-    "expo-gl": "latest",
     "geist": "latest",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
@@ -66,7 +63,6 @@
     "react-day-picker": "9.8.0",
     "react-dom": "^19",
     "react-hook-form": "^7.60.0",
-    "react-native": "latest",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.4",
     "sonner": "^1.7.4",
@@ -77,20 +73,16 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.20.13",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8.5",
+    "prettier": "^3.9.10",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
     "typescript": "^5",
     "wrangler": "^4.152.0"
-  },
-  "allowScripts": {
-    "esbuild@0.28.2": true,
-    "workerd@1.20261019.1": true,
-    "@tailwindcss/oxide@4.1.14": true
   }
 }

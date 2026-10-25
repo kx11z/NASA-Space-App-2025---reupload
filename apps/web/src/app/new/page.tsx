@@ -1,435 +1,292 @@
 "use client"
 
-import { siteUrl, apiUrl, isStaticDemo } from "@/lib/deployment"
-
-import type React from "react"
-
-import { useState } from "react"
+import { useEffect, useState, type FormEvent } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { ArrowLeft, ArrowRight, Loader2, FileUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Sparkles, Rocket } from "lucide-react"
-import Link from "next/link"
-import { LoadingScreen } from "@/components/loading-screen"
-
-import type { PlanetFormData } from "@/types/planet-form"
+import { isStaticDemo, apiUrl } from "@/lib/deployment"
+import { analyzeWithApi } from "@/lib/analysis/client"
+import { analyzePlanetData } from "@/lib/analysis/demo"
+import { saveResult } from "@/lib/analysis/storage"
+import { fieldRules, validateFitsFile, validatePlanetForm } from "@/lib/analysis/validation"
 import { inputSections } from "@/data/planet-form"
+import { emptyForm, exampleForm } from "@/data/example-form"
+import type { PlanetFormData } from "@/types/planet-form"
+import type { AnalysisResult } from "@/types/analysis"
 
+const draftKey = "exo-plain:form:v1"
 export default function NewPage() {
+  const router = useRouter()
+  const [formData, setFormData] = useState<PlanetFormData>(emptyForm)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [isAnalyzingLightCurve, setIsAnalyzingLightCurve] = useState(false)
-  const [lightCurveResults, setLightCurveResults] = useState<any>(null)
-  const [formData, setFormData] = useState<PlanetFormData>({
-    orbital_period: "",
-    transit_epoch: "",
-    impact_parameter: "",
-    transit_duration: "",
-    transit_depth: "",
-    planetary_radius: "",
-    equilibrium_temperature: "",
-    insolation_flux: "",
-    transit_snr: "",
-    tce_planet_number: "",
-    stellar_effective_temperature: "",
-    stellar_surface_gravity: "",
-    stellar_radius: "",
-    ra: "",
-    dec: "",
-    kepler_band_mag: "",
-    ring_system: "",
-  })
+  const [error, setError] = useState("")
+  const [fitsFile, setFitsFile] = useState<File | null>(null)
+  const [fitsBusy, setFitsBusy] = useState(false)
+  const [fitsError, setFitsError] = useState("")
+  const [fitsResult, setFitsResult] = useState<Record<string, unknown> | null>(null)
 
-  const handleInputChange = (field: keyof PlanetFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleFileChange = (file: File | null) => {
-    setFormData((prev) => ({ ...prev, light_curve_file: file || undefined }))
-    setLightCurveResults(null) // Clear previous results when new file is selected
-  }
-
-  const handleLightCurveAnalysis = async () => {
-    if (isStaticDemo) {
-      alert('FITS analysis requires a separately hosted API and is unavailable in this demonstration.')
-      return
-    }
-    if (!formData.light_curve_file) {
-      alert('Please select a FITS file first')
-      return
-    }
-
-    setIsAnalyzingLightCurve(true)
+  useEffect(() => {
     try {
-      const formDataToSend = new FormData()
-      formDataToSend.append('fits_file', formData.light_curve_file)
-
-      const response = await fetch(apiUrl('/api/analyze-light-curve'), {
-        method: 'POST',
-        body: formDataToSend,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to analyze light curve')
+      const saved = JSON.parse(sessionStorage.getItem(draftKey) || "null")
+      if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+        const values = { ...emptyForm }
+        for (const key of Object.keys(emptyForm) as (keyof PlanetFormData)[])
+          if (typeof saved[key] === "string") values[key] = saved[key]
+        setFormData(values)
       }
+    } catch {
+      /* A draft is optional; the form works without browser storage. */
+    }
+  }, [])
 
-      const results = await response.json()
-      setLightCurveResults(results)
-    } catch (error) {
-      console.error('Error analyzing light curve:', error)
-      alert(`Failed to analyze light curve: ${error instanceof Error ? error.message : 'Unknown error'}. No FITS analysis was produced.`)
-    } finally {
-      setIsAnalyzingLightCurve(false)
+  function updateForm(next: PlanetFormData) {
+    setFormData(next)
+    setError("")
+    try {
+      sessionStorage.setItem(draftKey, JSON.stringify(next))
+    } catch {
+      /* Optional draft. */
     }
   }
-
-  const handlePrefillExample = () => {
-    setFormData({
-      orbital_period: "9.48803557",
-      transit_epoch: "170.53875",
-      impact_parameter: "0.146",
-      transit_duration: "2.9575",
-      transit_depth: "615.8",
-      planetary_radius: "2.26",
-      equilibrium_temperature: "793",
-      insolation_flux: "93.59",
-      transit_snr: "35.80",
-      tce_planet_number: "1",
-      stellar_effective_temperature: "5455",
-      stellar_surface_gravity: "4.467",
-      stellar_radius: "0.927",
-      ra: "291.934230",
-      dec: "48.141651",
-      kepler_band_mag: "15.347",
-      ring_system: "false",
-    })
-    setLightCurveResults(null) // Clear any previous light curve results
+  function openResult(result: AnalysisResult) {
+    const id = saveResult(result)
+    router.push("/results/?result=" + id)
   }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  function showOverview() {
+    const issue = validatePlanetForm(formData)
+    if (issue) {
+      setError(issue)
+      return
+    }
+    try {
+      openResult(analyzePlanetData(formData, "new"))
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "The overview could not be opened.")
+    }
+  }
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    const issue = validatePlanetForm(formData)
+    if (issue) {
+      setError(issue)
+      return
+    }
+    if (isStaticDemo) {
+      showOverview()
+      return
+    }
+    setError("")
     setIsAnalyzing(true)
-    if (isStaticDemo) {
-      const params = new URLSearchParams({ planetData: JSON.stringify(formData), source: "new", error: "Demonstration only: live analysis is not connected." })
-      window.location.href = siteUrl(`/results/?${params.toString()}`)
+    try {
+      const analysis = await analyzeWithApi(formData)
+      openResult({ ...analysis, planetData: formData, source: "new" })
+    } catch (failure) {
+      setError(
+        failure instanceof Error && failure.name !== "TimeoutError"
+          ? failure.message
+          : "The analysis service took too long. Please try again.",
+      )
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+  async function analyzeFits() {
+    if (!fitsFile || isStaticDemo) return
+    const issue = validateFitsFile(fitsFile)
+    if (issue) {
+      setFitsError(issue)
       return
     }
-
+    setFitsBusy(true)
+    setFitsError("")
+    setFitsResult(null)
     try {
-      // Call Gemini API for real analysis
-      const response = await fetch(apiUrl('/api/analyze-planet'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          planetData: formData
-        })
+      const body = new FormData()
+      body.append("fits_file", fitsFile, fitsFile.name)
+      const response = await fetch(apiUrl("/api/analyze-light-curve"), {
+        method: "POST",
+        body,
+        signal: AbortSignal.timeout(35000),
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to analyze planet data')
-      }
-
-      const analysisResult = await response.json()
-
-      // Navigate to results with analysis data
-      const params = new URLSearchParams({
-        planetData: JSON.stringify(formData),
-        analysisResult: JSON.stringify(analysisResult),
-        source: "new",
-      })
-      window.location.href = siteUrl(`/results/?${params.toString()}`)
-    } catch (error) {
-      console.error('Error analyzing planet:', error)
-      // Fallback to mock analysis if API fails
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      
-      const params = new URLSearchParams({
-        planetData: JSON.stringify(formData),
-        source: "new",
-        error: "API analysis failed, showing mock results"
-      })
-      window.location.href = siteUrl(`/results/?${params.toString()}`)
+      const data: unknown = await response.json()
+      if (!data || typeof data !== "object" || Array.isArray(data))
+        throw new Error("The service returned an incomplete FITS result.")
+      if (!response.ok)
+        throw new Error(
+          "error" in data && typeof data.error === "string"
+            ? data.error
+            : "FITS analysis is unavailable.",
+        )
+      setFitsResult(data as Record<string, unknown>)
+    } catch (failure) {
+      setFitsError(
+        failure instanceof Error ? failure.message : "The FITS file could not be analyzed.",
+      )
+    } finally {
+      setFitsBusy(false)
     }
   }
-
-  if (isAnalyzing) {
-    return <LoadingScreen />
-  }
-
-
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Cosmic background effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[120px] animate-pulse" />
-        <div
-          className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-accent/10 rounded-full blur-[120px] animate-pulse"
-          style={{ animationDelay: "1s" }}
-        />
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+      <Button asChild variant="ghost">
+        <Link href="/">
+          <ArrowLeft className="w-4 h-4" /> Back to home
+        </Link>
+      </Button>
+      <header className="space-y-3 max-w-2xl">
+        <p className="text-xs tracking-[0.2em] text-primary uppercase">Explore the evidence</p>
+        <h1 className="text-3xl sm:text-5xl font-semibold">Your planet observations</h1>
+        <p className="text-muted-foreground leading-relaxed">
+          Enter your measurements or load an example. Fields marked * are required; you can leave
+          unknown measurements blank.
+        </p>
+      </header>
+      <div
+        role="status"
+        className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 px-5 py-4 text-sm text-cyan-100"
+      >
+        {isStaticDemo
+          ? "Educational mode. You can view a data overview; live AI and FITS analysis are not connected."
+          : "An analysis service is connected. AI assessments still require review against the original observations."}
       </div>
-
-      <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
-        {isStaticDemo && <p role="status" className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm">Demonstration mode. Results are simulated; live AI and FITS analysis are not connected.</p>}
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Link href="/">
-            <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Home
-            </Button>
-          </Link>
+      <Button type="button" variant="outline" onClick={() => updateForm({ ...exampleForm })}>
+        Load example data
+      </Button>
+      <form onSubmit={submit} className="space-y-6">
+        <div className="grid gap-5 md:grid-cols-2">
+          {inputSections.map((section) => (
+            <Card className="p-5 sm:p-6 space-y-5" key={section.title}>
+              <h2 className="font-semibold text-lg">{section.title}</h2>
+              {section.fields.map((field) => {
+                const rule = fieldRules[field.key]
+                return (
+                  <div key={field.key} className="space-y-2">
+                    <Label htmlFor={field.key}>
+                      {field.label}
+                      {rule.required ? " *" : ""}
+                    </Label>
+                    <Input
+                      id={field.key}
+                      type="number"
+                      step={rule.integer ? "1" : "any"}
+                      min={rule.positive ? 0 : rule.min}
+                      max={rule.max}
+                      required={rule.required}
+                      placeholder={field.placeholder}
+                      value={formData[field.key]}
+                      onChange={(event) =>
+                        updateForm({ ...formData, [field.key]: event.target.value })
+                      }
+                    />
+                  </div>
+                )
+              })}
+            </Card>
+          ))}
+          <Card className="p-5 sm:p-6 space-y-4">
+            <h2 className="font-semibold text-lg">Additional context</h2>
+            <div className="space-y-2">
+              <Label htmlFor="ring_system">Ring system</Label>
+              <select
+                id="ring_system"
+                value={formData.ring_system}
+                onChange={(event) => updateForm({ ...formData, ring_system: event.target.value })}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="false">No / not specified</option>
+                <option value="true">Yes</option>
+              </select>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              An overview summarizes the inputs. It cannot establish whether an object is an
+              exoplanet or whether it is habitable.
+            </p>
+          </Card>
         </div>
-
-        {/* Title */}
-        <div className="text-center mb-12 space-y-4">
-          <div className="flex items-center justify-center gap-3">
-            <Rocket className="w-12 h-12 text-primary animate-float" />
-            <h1 className="text-5xl font-bold text-primary">New Planet Prediction</h1>
+        {error && (
+          <div
+            role="alert"
+            className="rounded-xl border border-red-400/40 bg-red-400/5 p-5 space-y-3"
+          >
+            <p>{error}</p>
+            {!isStaticDemo && (
+              <Button type="button" variant="outline" onClick={showOverview}>
+                View an educational overview instead
+              </Button>
+            )}
           </div>
-          <p className="text-xl text-muted-foreground">
-            Enter the features of your celestial body to determine if it's an exoplanet
+        )}
+        <div className="flex flex-wrap gap-3 items-center">
+          <Button type="submit" size="lg" disabled={isAnalyzing}>
+            {isAnalyzing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <ArrowRight className="w-4 h-4" />
+            )}
+            {isAnalyzing
+              ? "Requesting analysis…"
+              : isStaticDemo
+                ? "View data overview"
+                : "Request AI assessment"}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Your inputs stay in this tab unless you request a live analysis.
           </p>
         </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit}>
-          <div className="grid lg:grid-cols-2 gap-6 mb-8">
-            {inputSections.map((section, sectionIndex) => (
-              <Card
-                key={sectionIndex}
-                className="p-6 bg-card/50 backdrop-blur border-2 border-border hover:border-primary/50 transition-colors"
-              >
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="text-3xl">{section.icon}</span>
-                  <h2 className="text-2xl font-bold text-foreground">{section.title}</h2>
-                </div>
-
-                <div className="space-y-4">
-                  {section.fields.map((field) => (
-                    <div key={field.key} className="space-y-2">
-                      <Label htmlFor={field.key} className="text-sm font-medium text-foreground">
-                        {field.label}
-                      </Label>
-                      <Input
-                        id={field.key}
-                        type={field.type}
-                        placeholder={field.placeholder}
-                        value={formData[field.key]}
-                        onChange={(e) => handleInputChange(field.key, e.target.value)}
-                        className="bg-background/50 border-border focus:border-primary"
-                        required
-                      />
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            ))}
-
-            {/* Ring System Card */}
-            <Card className="p-6 bg-card/50 backdrop-blur border-2 border-border hover:border-primary/50 transition-colors">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="text-3xl">💍</span>
-                <h2 className="text-2xl font-bold text-foreground">Ring System</h2>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ring_system" className="text-sm font-medium text-foreground">
-                  Does the planet have a ring system?
-                </Label>
-                <Select value={formData.ring_system} onValueChange={(value) => handleInputChange("ring_system", value)}>
-                  <SelectTrigger className="bg-background/50 border-border focus:border-primary">
-                    <SelectValue placeholder="Select option" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="false">No</SelectItem>
-                    <SelectItem value="true">Yes</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </Card>
-
-            {/* Light Curve Analysis Card */}
-            <Card className="p-6 bg-card/50 backdrop-blur border-2 border-border hover:border-primary/50 transition-colors">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="text-3xl">📊</span>
-                <h2 className="text-2xl font-bold text-foreground">Light Curve Analysis</h2>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="light_curve_file" className="text-sm font-medium text-foreground">
-                    Upload FITS File (Optional)
-                  </Label>
-                  <Input
-                    id="light_curve_file"
-                    type="file"
-                    accept=".fits,.fit"
-                    onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-                    className="bg-background/50 border-border focus:border-primary"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Upload a FITS file to analyze light curve features
-                  </p>
-                </div>
-
-                {formData.light_curve_file && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-foreground">
-                        Selected: {formData.light_curve_file.name}
-                      </span>
-                    </div>
-                    
-                    <Button
-                      type="button"
-                      onClick={handleLightCurveAnalysis}
-                      disabled={isAnalyzingLightCurve}
-                      className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
-                    >
-                      {isAnalyzingLightCurve ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                          Analyzing Light Curve...
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-lg mr-2">🔬</span>
-                          Analyze Light Curve Features
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-
-                {lightCurveResults && (
-                  <div className="mt-4 p-4 bg-background/30 rounded-lg border border-border/50">
-                    <h3 className="text-lg font-semibold text-foreground mb-3">Light Curve Analysis Results</h3>
-                    <div className="space-y-4 max-h-80 overflow-y-auto">
-                      {/* Gemini Prompt Section */}
-                      {lightCurveResults.gemini_prompt_human && (
-                        <div className="space-y-2">
-                          <h4 className="text-md font-semibold text-cyan-400">Analysis Prompt:</h4>
-                          <div className="p-3 bg-background/50 rounded border border-cyan-400/20">
-                            <p className="text-sm text-foreground leading-relaxed">
-                              {lightCurveResults.gemini_prompt_human}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Random Forest Prediction Section */}
-                      {lightCurveResults.random_forest_prediction && (
-                        <div className="space-y-2">
-                          <h4 className="text-md font-semibold text-green-400">🤖 Random Forest Prediction:</h4>
-                          <div className="p-3 bg-background/50 rounded border border-green-400/20">
-                            <div className="space-y-1">
-                              <p className="text-sm">
-                                <span className="font-semibold text-green-400">Prediction:</span> 
-                                <span className={`ml-2 font-bold ${
-                                  lightCurveResults.random_forest_prediction.prediction === 'EXOPLANET' 
-                                    ? 'text-green-400' 
-                                    : 'text-red-400'
-                                }`}>
-                                  {lightCurveResults.random_forest_prediction.prediction}
-                                </span>
-                              </p>
-                              <p className="text-sm">
-                                <span className="font-semibold text-green-400">Confidence:</span> 
-                                <span className="ml-2 text-foreground">
-                                  {lightCurveResults.random_forest_prediction.confidence}
-                                </span>
-                              </p>
-                              <p className="text-sm">
-                                <span className="font-semibold text-green-400">Probability:</span> 
-                                <span className="ml-2 text-foreground">
-                                  {(lightCurveResults.random_forest_prediction.probability * 100).toFixed(1)}%
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Features Section */}
-                      {lightCurveResults.Features && (
-                        <div className="space-y-2">
-                          <h4 className="text-md font-semibold text-blue-400">📊 Features (labeled):</h4>
-                          <div className="p-3 bg-background/50 rounded border border-blue-400/20">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                              {Object.entries(lightCurveResults.Features).map(([key, value]) => (
-                                <div key={key} className="flex justify-between">
-                                  <span className="text-muted-foreground font-mono">{key}:</span>
-                                  <span className="text-foreground font-mono">{String(value)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Fallback for other results */}
-                      {!lightCurveResults.gemini_prompt_human && !lightCurveResults.random_forest_prediction && !lightCurveResults.Features && (
-                        <div className="space-y-2">
-                          <h4 className="text-md font-semibold text-foreground">Raw Analysis Results:</h4>
-                          <div className="p-3 bg-background/50 rounded border border-border/50">
-                            <div className="space-y-1 max-h-40 overflow-y-auto">
-                              {Object.entries(lightCurveResults).map(([key, value]) => (
-                                <div key={key} className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground font-mono">{key}:</span>
-                                  <span className="text-foreground font-mono">{String(value)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              type="button"
-              onClick={handlePrefillExample}
-              size="lg"
-              variant="outline"
-              className="gap-3 bg-transparent border-green-400 text-green-400 hover:bg-green-400/10 px-8 py-6 text-lg h-auto"
-            >
-              <span className="text-lg">📋</span>
-              Prefill Example Data
-            </Button>
-            <Button
-              type="submit"
-              size="lg"
-              className="gap-3 bg-primary hover:bg-primary/90 text-primary-foreground px-12 py-6 text-lg h-auto group"
-            >
-              <Sparkles className="w-6 h-6 group-hover:animate-spin" />
-              Analyze with AI
-              <Sparkles className="w-6 h-6 group-hover:animate-spin" />
-            </Button>
-            <Link href="http://54.241.157.82:5000/" target="_blank" rel="noopener noreferrer">
-              <Button
-                type="button"
-                size="lg"
-                variant="outline"
-                className="gap-3 bg-transparent border-cyan-400 text-cyan-400 hover:bg-cyan-400/10 px-12 py-6 text-lg h-auto"
-              >
-                <span className="text-lg">📊</span>
-                Analyze Light Curve
-              </Button>
-            </Link>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+      <section aria-labelledby="fits-title">
+        <Card className="p-5 sm:p-6 space-y-4">
+          <h2 id="fits-title" className="text-xl font-semibold flex items-center gap-2">
+            <FileUp className="w-5 h-5" /> FITS light curve analysis
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {isStaticDemo
+              ? "This feature needs a connected FITS analysis service. No file is uploaded in educational mode."
+              : "Upload a .fits or .fit file, up to 20 MB, to extract light curve features. This runs separately from the observation form."}
+          </p>
+          <Label htmlFor="fits-file">FITS file</Label>
+          <Input
+            id="fits-file"
+            type="file"
+            accept=".fits,.fit"
+            disabled={isStaticDemo || fitsBusy}
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null
+              setFitsFile(file)
+              setFitsResult(null)
+              setFitsError(file ? validateFitsFile(file) || "" : "")
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isStaticDemo || fitsBusy || !fitsFile || !!validateFitsFile(fitsFile)}
+            onClick={analyzeFits}
+          >
+            {fitsBusy ? "Analyzing FITS file…" : "Analyze FITS file"}
+          </Button>
+          {fitsError && (
+            <p role="alert" className="text-red-300">
+              {fitsError}
+            </p>
+          )}
+          {fitsResult && (
+            <details className="rounded-md border border-border p-4" open>
+              <summary className="font-medium cursor-pointer">
+                Extracted light curve results
+              </summary>
+              <pre className="mt-3 text-xs whitespace-pre-wrap break-all overflow-auto max-h-80">
+                {JSON.stringify(fitsResult, null, 2)}
+              </pre>
+            </details>
+          )}
+        </Card>
+      </section>
+    </main>
   )
 }

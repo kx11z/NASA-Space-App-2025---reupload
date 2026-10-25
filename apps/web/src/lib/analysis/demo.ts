@@ -1,66 +1,58 @@
 import type { AnalysisResult } from "@/types/analysis"
+import { planetDataSchema } from "./schema"
 
-// Placeholder AI analysis function
-export function analyzePlanetData(planetData: any, source: string): AnalysisResult {
-  // Extract features for analysis
-  const features = source === "existing" ? planetData.features : planetData
-
-  // Simple heuristic: check habitability score or other key metrics
-  const habitabilityScore = Number.parseFloat(features.habitability_score) || 0
-  const planetRadius = Number.parseFloat(features.planet_radius) || 0
-  const orbitalPeriod = Number.parseFloat(features.orbital_period) || 0
-  const equilibriumTemp = Number.parseFloat(features.equilibrium_temperature) || 0
-
-  // Determine if it's an exoplanet (placeholder logic)
-  const isExoplanet = habitabilityScore > 0.5 || (planetRadius > 0.5 && planetRadius < 10 && orbitalPeriod > 0)
-
-  // Calculate confidence
-  const confidence = Math.min(95, Math.max(65, Math.round(habitabilityScore * 100 + Math.random() * 10)))
-
-  // Generate explanation
-  const explanation = isExoplanet
-    ? `Based on the analysis of ${Object.keys(features).length} planetary features, our AI model has determined this is likely an exoplanet. The combination of orbital characteristics, physical properties, and stellar parameters align with known exoplanet signatures. Key indicators include the planet's radius (${planetRadius} Earth radii), orbital period (${orbitalPeriod} days), and habitability score (${habitabilityScore}). These values fall within the expected range for confirmed exoplanets in our database.`
-    : `After analyzing ${Object.keys(features).length} features, our AI model suggests this celestial body does not match typical exoplanet characteristics. The data shows anomalies in key parameters such as orbital mechanics, physical properties, or stellar relationships that deviate from confirmed exoplanet patterns. This could indicate a different type of celestial object, measurement errors, or insufficient data quality.`
-
-  // Determine top impactful features
-  const topFeatures = [
-    {
-      name: "Habitability Score",
-      impact: 95,
-      value: habitabilityScore.toFixed(2),
-      reasoning: "Primary indicator of exoplanet potential based on conditions suitable for life",
-    },
-    {
-      name: "Planet Radius",
-      impact: 88,
-      value: `${planetRadius} Earth radii`,
-      reasoning: "Size comparison to Earth helps classify planet type and formation history",
-    },
-    {
-      name: "Orbital Period",
-      impact: 82,
-      value: `${orbitalPeriod} days`,
-      reasoning: "Determines the planet's year length and distance from its host star",
-    },
-    {
-      name: "Equilibrium Temperature",
-      impact: 76,
-      value: `${equilibriumTemp} K`,
-      reasoning: "Critical for determining potential atmospheric conditions and habitability",
-    },
-    {
-      name: "Semi-Major Axis",
-      impact: 71,
-      value: `${features.semi_major_axis} AU`,
-      reasoning: "Defines orbital distance and influences temperature and stellar radiation received",
-    },
-  ]
-
+export function analyzePlanetData(input: unknown, source: "existing" | "new"): AnalysisResult {
+  const planetData = planetDataSchema.parse(input)
+  const features = (planetData.features ?? planetData) as Record<string, unknown>
+  const value = (key: string, unit: string) => {
+    const raw = features[key]
+    return raw !== undefined &&
+      raw !== null &&
+      String(raw).trim() !== "" &&
+      Number.isFinite(Number(raw))
+      ? Number(raw).toLocaleString("en-US", { maximumFractionDigits: 6 }) + unit
+      : "Not provided"
+  }
+  const radiusKey = features.planetary_radius !== undefined ? "planetary_radius" : "planet_radius"
   return {
-    isExoplanet,
-    confidence,
-    explanation,
-    topFeatures,
+    mode: "demo",
+    isExoplanet: null,
+    confidence: null,
+    explanation:
+      "This overview summarizes the supplied values. It does not run a trained classifier or confirm a planet discovery. Review the original observations and connect an analysis service for an AI assessment.",
+    topFeatures: [
+      {
+        name: "Planet radius",
+        impact: null,
+        value: value(radiusKey, " Earth radii"),
+        reasoning: "The supplied size estimate, expressed relative to Earth's radius.",
+      },
+      {
+        name: "Orbital period",
+        impact: null,
+        value: value("orbital_period", " days"),
+        reasoning: "The supplied time for one orbit around the host star.",
+      },
+      {
+        name: "Equilibrium temperature",
+        impact: null,
+        value: value("equilibrium_temperature", " K"),
+        reasoning: "An input estimate; it does not establish surface conditions or habitability.",
+      },
+      {
+        name: "Transit depth",
+        impact: null,
+        value: value("transit_depth", " ppm"),
+        reasoning:
+          "The supplied change in brightness during a transit. Missing measurements are left unspecified.",
+      },
+      {
+        name: "Stellar radius",
+        impact: null,
+        value: value("stellar_radius", " Solar radii"),
+        reasoning: "The supplied size of the host star, expressed relative to the Sun.",
+      },
+    ],
     planetData,
     source,
   }

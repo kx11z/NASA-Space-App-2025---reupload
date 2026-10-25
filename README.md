@@ -29,8 +29,12 @@ Use npm for the active application; package-lock.json is the authoritative lockf
 
 ## Publish
 
-GitHub Actions builds apps/web and publishes it to GitHub Pages on pushes to main. The default site runs in labeled demonstration mode; live AI and FITS analysis require a separately hosted backend. See [deployment](docs/deployment.md).
+GitHub Actions builds apps/web and publishes it to GitHub Pages on pushes to main. Without a backend, the site shows educational overviews; live AI and FITS analysis require a separately hosted backend. See [deployment](docs/deployment.md).
 
 ## Research and historical projects
 
 Run Python scripts from research/python so their existing relative model and data paths resolve. The research environment is separate from the website and is not installed by the GitHub Pages workflow. Older websites and deployment scripts in archive are retained for reference and are not used by the live website.
+
+## Regression checks
+
+From apps/web, run npm test after installing the Playwright browser. See [repair notes](docs/repair-notes.md) for the branch repair scope and current service limitations.

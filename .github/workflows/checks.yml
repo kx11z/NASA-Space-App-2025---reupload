@@ -1,0 +1,42 @@
+name: Repair branch checks
+on:
+  push:
+    branches: ['codex/**']
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [educational, connected]
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run format:check
+      - run: npx playwright install --with-deps chromium
+      - name: Build and run regression tests
+        run: npm test
+        env:
+          TEST_LIVE_API: ${{ matrix.mode == 'connected' && 'true' || 'false' }}
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.mode }}
+          path: apps/web/test-results
+          retention-days: 7

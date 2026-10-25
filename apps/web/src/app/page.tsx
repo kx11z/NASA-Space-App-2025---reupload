@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { isStaticDemo } from "@/lib/deployment"
 import { Button } from "@/components/ui/button"
 import { Rocket, Database } from "lucide-react"
 
@@ -15,13 +16,13 @@ export default function HomePage() {
               key={i}
               className="absolute rounded-full bg-white"
               style={{
-                width: Math.random() * 3 + "px",
-                height: Math.random() * 3 + "px",
-                top: Math.random() * 100 + "%",
-                left: Math.random() * 100 + "%",
-                opacity: Math.random() * 0.7 + 0.3,
-                animation: `twinkle ${Math.random() * 3 + 2}s ease-in-out infinite`,
-                animationDelay: `${Math.random() * 2}s`,
+                width: (((i * 37 + 11) % 100) / 100) * 3 + "px",
+                height: (((i * 37 + 11) % 100) / 100) * 3 + "px",
+                top: ((i * 73 + 19) % 100) + "%",
+                left: ((i * 47 + 31) % 100) + "%",
+                opacity: (((i * 17 + 3) % 100) / 100) * 0.7 + 0.3,
+                animation: `twinkle ${(((i * 37 + 11) % 100) / 100) * 3 + 2}s ease-in-out infinite`,
+                animationDelay: `${(((i * 29 + 7) % 100) / 100) * 2}s`,
               }}
             />
           ))}
@@ -47,10 +48,15 @@ export default function HomePage() {
               Exo-Plain
             </h1>
             <p className="text-xl md:text-2xl text-cyan-100 text-balance drop-shadow-[0_0_10px_rgba(0,255,255,0.3)]">
-              Discover and analyze exoplanets using advanced AI prediction models
+              Explore distant worlds. Understand the evidence.
             </p>
           </div>
 
+          <p className="text-sm text-cyan-100/75 max-w-xl mx-auto leading-relaxed">
+            {isStaticDemo
+              ? "Educational mode: browse sample worlds and get an overview of your observations. Live AI analysis is not connected."
+              : "Explore sample worlds or request an AI assessment of your observations."}
+          </p>
           {/* Navigation Buttons */}
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center pt-8">
             <Link href="/existing">
@@ -61,7 +67,7 @@ export default function HomePage() {
                 <div className="flex flex-col items-center gap-2">
                   <Database className="w-8 h-8" />
                   <span className="font-semibold">Explore Existing Data</span>
-                  <span className="text-sm opacity-90">Analyze known exoplanets</span>
+                  <span className="text-sm opacity-90">Browse illustrative sample planets</span>
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
               </Button>
@@ -74,7 +80,7 @@ export default function HomePage() {
               >
                 <div className="flex flex-col items-center gap-2">
                   <Rocket className="w-8 h-8" />
-                  <span className="font-semibold">Predict New Data</span>
+                  <span className="font-semibold">Explore Your Data</span>
                   <span className="text-sm opacity-90">Input custom planet features</span>
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />

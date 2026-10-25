@@ -13,13 +13,15 @@ The workflow installs dependencies with Node.js 22, builds apps/web, and publish
 
 ## AI and FITS analysis
 
-GitHub Pages hosts static files only. With no API configured, the site runs in clearly labeled demonstration mode. FITS analysis is unavailable and planet classification/confidence are simulated. Existing planet examples also use simulated analysis.
+GitHub Pages hosts static files only. With no API configured, the site runs in educational mode. FITS uploads are disabled. Overviews summarize input values without classifying objects or inventing confidence scores. Existing examples are labeled as illustrative sample data.
 
 For live analysis, host the API separately. The existing Cloudflare Pages Functions are retained as an optional backend. Add GEMINI_API_KEY as a secret on that backend and FITS_API_URL as the HTTPS /api/extract URL of a separately hosted Python inference service. Set FRONTEND_ORIGIN to https://kx11z.github.io (or your custom domain origin) on the backend to permit browser requests.
 
 In GitHub Settings > Secrets and variables > Actions > Variables, add NEXT_PUBLIC_API_BASE_URL with the backend origin, such as https://your-api.example.com (without /api). Re-run the workflow after changing it. This public URL is embedded at build time. Never place GEMINI_API_KEY in a NEXT_PUBLIC variable or GitHub Pages output.
 
 The workflow does not deploy a backend. For the optional Cloudflare backend: use root apps/web, build npm run build:pages, output out, and set its runtime secrets. Build it with NEXT_PUBLIC_BASE_PATH unset.
+
+For a frontend hosted alongside Cloudflare Functions, set NEXT_PUBLIC_SAME_ORIGIN_API=true during its build. Keep it unset for a backend-free GitHub Pages deployment. GEMINI_MODEL optionally selects the backend Gemini model; the default is gemini-3.8-flash. The default follows Google's [current model guidance](https://ai.google.dev/gemini-api/docs/deprecations); set GEMINI_MODEL if your account uses a different supported model. The backend uses structured JSON output: https://ai.google.dev/gemini-api/docs/structured-output
 
 ## Local verification
 
@@ -31,4 +33,4 @@ To preview under the real repository path, serve a parent folder containing the 
 
 ## Limitations
 
-Production builds check TypeScript; run npm run typecheck for a standalone check. ESLint is not configured. Planet illustrations rely on an external image service. LLM assessments and simulated confidence are not validated scientific predictions. Legacy Docker/Render scripts target the former server deployment.
+Production builds check TypeScript; run npm run typecheck for a standalone check. ESLint is not configured. Planet illustrations render locally and are not observational images. LLM assessments are not validated scientific predictions. Legacy Docker/Render scripts target the former server deployment.

@@ -1,20 +1,5 @@
-export type AnalysisResult = {
-  isExoplanet: boolean
-  confidence: number
-  explanation: string
-  topFeatures: Array<{
-    name: string
-    impact: number
-    value: string | number
-    reasoning: string
-  }>
-  geminiAnalysis?: {
-    answer: boolean
-    most_important_features: Array<{
-      [key: string]: string
-      Relevance: string
-    }>
-  }
-  planetData: any
-  source: string
-}
+import type { z } from "zod"
+import type { analysisPayloadSchema, analysisResultSchema } from "@/lib/analysis/schema"
+
+export type AnalysisPayload = z.infer<typeof analysisPayloadSchema>
+export type AnalysisResult = z.infer<typeof analysisResultSchema>
