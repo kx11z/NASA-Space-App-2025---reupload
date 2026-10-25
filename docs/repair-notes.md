@@ -24,3 +24,7 @@ The sample catalog remains illustrative, with its original sample values. No ver
 ## Validation
 
 Regression tests cover form/radius handling, reproducible overviews, invalid inputs, result storage, provider failures, mobile navigation, direct result links, dialog behavior, WebGL fallback, downloads, and connected-backend success/failure flows. Tests build the actual static export under the GitHub repository path. The separate branch-check workflow does not deploy a website.
+
+## Dependency maintenance
+
+Compatible dependency patches were applied without forced upgrades. Some advisories remain in the legacy Next.js/PostCSS dependency, Cloudflare tooling/Undici, and Zod 3. Addressing those requires separate compatibility work; this repair does not claim a clean dependency audit. The browser and backend regression tests check the repaired behavior, not the absence of every dependency vulnerability.
