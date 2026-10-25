@@ -1,19 +1,18 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { NextResponse } from 'next/server'
 
 const MODEL_NAME = 'gemini-2.5-pro'
 
-export async function POST(req: Request) {
+export async function POST(req: Request, env: { GEMINI_API_KEY?: string }) {
   try {
     const { planetData } = await req.json()
 
     const prompt = createImagePrompt(planetData)
-    const imageUrl = await generatePlanetImage(prompt)
+    const imageUrl = await generatePlanetImage(prompt, env.GEMINI_API_KEY)
 
-    return NextResponse.json({ imageUrl })
+    return Response.json({ imageUrl })
   } catch (error: any) {
     console.error('Error in generate-planet-image API:', error)
-    return new NextResponse(
+    return new Response(
       JSON.stringify({ error: error.message || 'Failed to generate planet image' }),
       { status: 500 }
     )
@@ -56,8 +55,7 @@ function createImagePrompt(planetData: any): string {
   return description
 }
 
-async function generatePlanetImage(prompt: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY
+async function generatePlanetImage(prompt: string, apiKey?: string): Promise<string> {
 
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY environment variable is not set')

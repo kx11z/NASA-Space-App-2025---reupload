@@ -1,78 +1,29 @@
-# Render Deployment Guide
+# Deploy Exo-Plain to Cloudflare Pages
 
-## Overview
-This guide will help you deploy your NASA Space Apps Challenge exoplanet predictor to Render.
+Repository: https://github.com/kx11z/NASA-Space-App-2025---reupload
 
-## Prerequisites
-1. A GitHub account with your code repository
-2. A Render account (sign up at [render.com](https://render.com))
-3. A Gemini API key (optional, for AI analysis features)
+## Cloudflare Git integration
 
-## Deployment Steps
+1. In Cloudflare, open Workers & Pages, create a **Pages** project and connect the GitHub repository above. Authorize the Cloudflare GitHub app if prompted.
+2. Select your production branch (normally main).
+3. Set root directory to **exoplanet-predictor**.
+4. Set framework preset to **None**, build command to **npm run build:pages**, and output directory to **out**. Leave any Workers deploy command empty.
+5. Set NODE_VERSION to **22**. The committed .npmrc enables the peer dependency compatibility required by this project's dependencies.
+6. Add **GEMINI_API_KEY** as an encrypted runtime variable for Production and Preview. Never use a NEXT_PUBLIC_ prefix for this secret.
+7. For real FITS model inference, set **FITS_API_URL** to your separately hosted Python server's HTTPS /api/extract URL. Python/PyTorch models do not run inside Pages Functions. Without this setting FITS uploads return an explicit configuration error.
+8. Save and deploy. Subsequent pushes to the connected branch trigger builds.
 
-### 1. Push to GitHub
-Make sure your code is pushed to a GitHub repository:
-```bash
-git add .
-git commit -m "Prepare for Render deployment"
-git push origin main
-```
+The frontend is a Next.js static export. The functions/api directory supplies the three POST API endpoints, with secrets read from Cloudflare runtime bindings. Do not upload only out through dashboard drag and drop: use Git integration or Wrangler so Functions are included.
 
-### 2. Connect to Render
-1. Go to [render.com](https://render.com) and sign in
-2. Click "New +" → "Web Service"
-3. Connect your GitHub repository
-4. Select your repository
+## Local verification
 
-### 3. Configure the Service
-Use these settings:
-- **Name**: `exoplanet-predictor` (or your preferred name)
-- **Environment**: `Node`
-- **Plan**: `Free` (or upgrade if needed)
-- **Build Command**: `cd exoplanet-predictor && npm install && npm run build`
-- **Start Command**: `cd exoplanet-predictor && npm start`
-- **Root Directory**: `exoplanet-predictor`
+From exoplanet-predictor, run npm ci, then npm run build:pages.
+Copy .dev.vars.example to .dev.vars, add your own key, then run npm run preview:pages. Open the URL printed by Wrangler. next dev by itself serves the frontend only; use the Pages preview for API calls.
 
-### 4. Environment Variables
-Add these environment variables in Render dashboard:
-- `NODE_ENV`: `production`
-- `GEMINI_API_KEY`: `your_actual_gemini_api_key_here` (optional)
+## Optional command line deployment
 
-### 5. Deploy
-Click "Create Web Service" and wait for deployment to complete.
+Run npx wrangler login, then npm run deploy:pages. Select/create your Pages project when prompted. For Git integration, create the project through the dashboard instead.
 
-## Alternative: Using render.yaml
-If you prefer automatic configuration:
-1. The `render.yaml` file is already created in your project root
-2. Connect your GitHub repository to Render
-3. Render will automatically detect and use the configuration
+## Current product limitations
 
-## Getting a Gemini API Key (Optional)
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Sign in with your Google account
-3. Create a new API key
-4. Add it to your Render environment variables
-
-## Features Available After Deployment
-- ✅ Exoplanet prediction interface
-- ✅ Light curve analysis
-- ✅ Planet visualization
-- ✅ AI-powered analysis (with Gemini API key)
-- ✅ Responsive design
-- ✅ Modern UI with space theme
-
-## Troubleshooting
-- If build fails, check the build logs in Render dashboard
-- Ensure all dependencies are in package.json
-- Verify environment variables are set correctly
-- Check that the root directory is set to `exoplanet-predictor`
-
-## Custom Domain (Optional)
-You can add a custom domain in the Render dashboard under "Settings" → "Custom Domains".
-
-## Monitoring
-- View logs in the Render dashboard
-- Monitor performance and usage
-- Set up alerts for downtime
-
-Your app will be available at: `https://your-app-name.onrender.com`
+Gemini provides an LLM assessment, not validated model confidence. The image endpoint currently returns a stock illustration rather than generating an image. FITS model inference requires the separate Python service. Build configuration retains the existing TypeScript error bypass; a successful build alone is not a clean type check.

@@ -91,7 +91,7 @@ export default function NewPage() {
       setLightCurveResults(results)
     } catch (error) {
       console.error('Error analyzing light curve:', error)
-      alert(`Failed to analyze light curve: ${error instanceof Error ? error.message : 'Unknown error'}. The analysis will use simulated data.`)
+      alert(`Failed to analyze light curve: ${error instanceof Error ? error.message : 'Unknown error'}. No FITS analysis was produced.`)
     } finally {
       setIsAnalyzingLightCurve(false)
     }

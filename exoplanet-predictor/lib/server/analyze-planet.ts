@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request, env: { GEMINI_API_KEY?: string }) {
   try {
     const body = await request.json()
     const { planetData } = body
+    if (!planetData || typeof planetData !== "object" || Array.isArray(planetData)) return Response.json({ error: "planetData must be an object" }, { status: 400 })
 
     // Format the data for Gemini analysis
     const formattedData = formatPlanetDataForGemini(planetData)
@@ -12,15 +12,15 @@ export async function POST(request: NextRequest) {
     const prompt = createGeminiPrompt(formattedData)
     
     // Call Gemini API
-    const geminiResponse = await callGeminiAPI(prompt)
+    const geminiResponse = await callGeminiAPI(prompt, env.GEMINI_API_KEY)
     
     // Parse and format the response
     const analysisResult = parseGeminiResponse(geminiResponse)
     
-    return NextResponse.json(analysisResult)
+    return Response.json(analysisResult)
   } catch (error) {
     console.error('Error analyzing planet:', error)
-    return NextResponse.json(
+    return Response.json(
       { error: 'Failed to analyze planet data' },
       { status: 500 }
     )
@@ -132,11 +132,8 @@ Required JSON format (respond with exactly this structure):
 }`
 }
 
-async function callGeminiAPI(prompt: string): Promise<any> {
-  const apiKey = process.env.GEMINI_API_KEY
+async function callGeminiAPI(prompt: string, apiKey?: string): Promise<any> {
   
-  console.log('GEMINI_API_KEY exists:', !!apiKey)
-  console.log('GEMINI_API_KEY length:', apiKey?.length || 0)
   
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY environment variable is not set')
@@ -204,7 +201,7 @@ function parseGeminiResponse(geminiResponse: any): any {
     
     // Transform to our expected format
     return {
-      isExoplanet: analysis.answer || true, // Default to true if not specified
+      isExoplanet: analysis.answer === true, // Default to true if not specified
       confidence: analysis.answer ? 85 : 15, // Mock confidence based on answer (percentage)
       explanation: `Based on the analysis of ${analysis.most_important_features?.length || 5} key features, this object ${analysis.answer ? 'is classified as an exoplanet' : 'is not classified as an exoplanet'}.`,
       topFeatures: (analysis.most_important_features || []).map((feature: any, index: number) => ({
