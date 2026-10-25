@@ -160,13 +160,11 @@ test("a transient FITS failure can be retried without reselecting the file", asy
     })
   })
   await page.goto("new/")
-  await page
-    .getByLabel("FITS file", { exact: true })
-    .setInputFiles({
-      name: "sample.fits",
-      mimeType: "application/fits",
-      buffer: Buffer.from("SIMPLE = T"),
-    })
+  await page.getByLabel("FITS file", { exact: true }).setInputFiles({
+    name: "sample.fits",
+    mimeType: "application/fits",
+    buffer: Buffer.from("SIMPLE = T"),
+  })
   await page.getByRole("button", { name: "Analyze FITS file", exact: true }).click()
   await expect(
     page.getByText("The FITS service is temporarily unavailable.", { exact: true }),
