@@ -121,6 +121,7 @@ function ResultsContent() {
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
+        {!searchParams.get("analysisResult") && <p role="status" className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm">Demonstration results — simulated classification and confidence. These are not live AI or FITS model predictions.</p>}
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link href="/">

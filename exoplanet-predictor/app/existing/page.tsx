@@ -1,5 +1,7 @@
 "use client"
 
+import { siteUrl } from "@/lib/deployment"
+
 import { useState } from "react"
 import { GalaxyMap } from "@/components/galaxy-map"
 import { PlanetInfoPanel } from "@/components/planet-info-panel"
@@ -61,7 +63,7 @@ export default function ExistingPage() {
       planetData: JSON.stringify(planet),
       source: "existing",
     })
-    window.location.href = `/results?${params.toString()}`
+    window.location.href = siteUrl(`/results/?${params.toString()}`)
   }
 
   if (isAnalyzing) {

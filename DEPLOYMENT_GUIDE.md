@@ -1,29 +1,34 @@
-# Deploy Exo-Plain to Cloudflare Pages
+# Deploy Exo-Plain to GitHub Pages
 
 Repository: https://github.com/kx11z/NASA-Space-App-2025---reupload
+Expected site: https://kx11z.github.io/NASA-Space-App-2025---reupload/
 
-## Cloudflare Git integration
+## Enable hosting
 
-1. In Cloudflare, open Workers & Pages, create a **Pages** project and connect the GitHub repository above. Authorize the Cloudflare GitHub app if prompted.
-2. Select your production branch (normally main).
-3. Set root directory to **exoplanet-predictor**.
-4. Set framework preset to **None**, build command to **npm run build:pages**, and output directory to **out**. Leave any Workers deploy command empty.
-5. Set NODE_VERSION to **22**. The committed .npmrc enables the peer dependency compatibility required by this project's dependencies.
-6. Add **GEMINI_API_KEY** as an encrypted runtime variable for Production and Preview. Never use a NEXT_PUBLIC_ prefix for this secret.
-7. For real FITS model inference, set **FITS_API_URL** to your separately hosted Python server's HTTPS /api/extract URL. Python/PyTorch models do not run inside Pages Functions. Without this setting FITS uploads return an explicit configuration error.
-8. Save and deploy. Subsequent pushes to the connected branch trigger builds.
+1. Open the repository Settings, then Pages.
+2. Under Build and deployment, set Source to **GitHub Actions**.
+3. Open Actions and run **Deploy GitHub Pages**, or push a change to main.
 
-The frontend is a Next.js static export. The functions/api directory supplies the three POST API endpoints, with secrets read from Cloudflare runtime bindings. Do not upload only out through dashboard drag and drop: use Git integration or Wrangler so Functions are included.
+The workflow installs dependencies with Node.js 22, builds exoplanet-predictor, and publishes out. It gets the base path from GitHub Pages metadata, so internal navigation and assets work under the repository path. Routes export as directories (for example new/index.html) so direct links and refreshes work. The .nojekyll file permits _next assets.
+
+## AI and FITS analysis
+
+GitHub Pages hosts static files only. With no API configured, the site runs in clearly labeled demonstration mode. FITS analysis is unavailable and planet classification/confidence are simulated. Existing planet examples also use simulated analysis.
+
+For live analysis, host the API separately. The existing Cloudflare Pages Functions are retained as an optional backend. Add GEMINI_API_KEY as a secret on that backend and FITS_API_URL as the HTTPS /api/extract URL of a separately hosted Python inference service. Set FRONTEND_ORIGIN to https://kx11z.github.io (or your custom domain origin) on the backend to permit browser requests.
+
+In GitHub Settings > Secrets and variables > Actions > Variables, add NEXT_PUBLIC_API_BASE_URL with the backend origin, such as https://your-api.example.com (without /api). Re-run the workflow after changing it. This public URL is embedded at build time. Never place GEMINI_API_KEY in a NEXT_PUBLIC variable or GitHub Pages output.
+
+The workflow does not deploy a backend. For the optional Cloudflare backend: use root exoplanet-predictor, build npm run build:pages, output out, and set its runtime secrets. Build it with NEXT_PUBLIC_BASE_PATH unset.
 
 ## Local verification
 
-From exoplanet-predictor, run npm ci, then npm run build:pages.
-Copy .dev.vars.example to .dev.vars, add your own key, then run npm run preview:pages. Open the URL printed by Wrangler. next dev by itself serves the frontend only; use the Pages preview for API calls.
+From exoplanet-predictor run npm ci, then:
 
-## Optional command line deployment
+NEXT_PUBLIC_BASE_PATH=/NASA-Space-App-2025---reupload NEXT_PUBLIC_GITHUB_PAGES=true npm run build
 
-Run npx wrangler login, then npm run deploy:pages. Select/create your Pages project when prompted. For Git integration, create the project through the dashboard instead.
+To preview under the real repository path, serve a parent folder containing the out directory mounted as NASA-Space-App-2025---reupload. A frontend-only next dev session uses paths without the repository prefix.
 
-## Current product limitations
+## Limitations
 
-Gemini provides an LLM assessment, not validated model confidence. The image endpoint currently returns a stock illustration rather than generating an image. FITS model inference requires the separate Python service. Build configuration retains the existing TypeScript error bypass; a successful build alone is not a clean type check.
+The project retains its existing lint/type-check bypasses. A production build is not a clean type check. Planet illustrations rely on an external image service. LLM assessments and simulated confidence are not validated scientific predictions. Legacy Docker/Render scripts target the former server deployment.

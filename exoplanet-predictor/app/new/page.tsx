@@ -1,5 +1,7 @@
 "use client"
 
+import { siteUrl, apiUrl, isStaticDemo } from "@/lib/deployment"
+
 import type React from "react"
 
 import { useState } from "react"
@@ -67,6 +69,10 @@ export default function NewPage() {
   }
 
   const handleLightCurveAnalysis = async () => {
+    if (isStaticDemo) {
+      alert('FITS analysis requires a separately hosted API and is unavailable in this demonstration.')
+      return
+    }
     if (!formData.light_curve_file) {
       alert('Please select a FITS file first')
       return
@@ -77,7 +83,7 @@ export default function NewPage() {
       const formDataToSend = new FormData()
       formDataToSend.append('fits_file', formData.light_curve_file)
 
-      const response = await fetch('/api/analyze-light-curve', {
+      const response = await fetch(apiUrl('/api/analyze-light-curve'), {
         method: 'POST',
         body: formDataToSend,
       })
@@ -123,10 +129,15 @@ export default function NewPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsAnalyzing(true)
+    if (isStaticDemo) {
+      const params = new URLSearchParams({ planetData: JSON.stringify(formData), source: "new", error: "Demonstration only: live analysis is not connected." })
+      window.location.href = siteUrl(`/results/?${params.toString()}`)
+      return
+    }
 
     try {
       // Call Gemini API for real analysis
-      const response = await fetch('/api/analyze-planet', {
+      const response = await fetch(apiUrl('/api/analyze-planet'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,7 +159,7 @@ export default function NewPage() {
         analysisResult: JSON.stringify(analysisResult),
         source: "new",
       })
-      window.location.href = `/results?${params.toString()}`
+      window.location.href = siteUrl(`/results/?${params.toString()}`)
     } catch (error) {
       console.error('Error analyzing planet:', error)
       // Fallback to mock analysis if API fails
@@ -159,7 +170,7 @@ export default function NewPage() {
         source: "new",
         error: "API analysis failed, showing mock results"
       })
-      window.location.href = `/results?${params.toString()}`
+      window.location.href = siteUrl(`/results/?${params.toString()}`)
     }
   }
 
@@ -228,6 +239,7 @@ export default function NewPage() {
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
+        {isStaticDemo && <p role="status" className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm">Demonstration mode. Results are simulated; live AI and FITS analysis are not connected.</p>}
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link href="/">
